@@ -25,7 +25,8 @@ public static class WaitForDependenciesExtensions
         return builder;
     }
 
-    private class WaitForDependenciesRunningHook(ResourceNotificationService resourceNotificationService) :
+    private class WaitForDependenciesRunningHook(DistributedApplicationExecutionContext executionContext,
+        ResourceNotificationService resourceNotificationService) :
         IDistributedApplicationLifecycleHook,
         IAsyncDisposable
     {
@@ -33,6 +34,11 @@ public static class WaitForDependenciesExtensions
 
         public Task BeforeStartAsync(DistributedApplicationModel appModel, CancellationToken cancellationToken = default)
         {
+            if (executionContext.IsPublishMode)
+            {
+                return Task.CompletedTask;
+            }
+
             // The global list of resources being waited on
             var waitingResources = new ConcurrentDictionary<IResource, TaskCompletionSource>();
 
