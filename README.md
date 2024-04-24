@@ -1,0 +1,3 @@
+# Waiting for dependencies
+
+This examples shows how to extend the .NET Aspire application model to enable waiting for dependencies to be available before starting the application. It uses ASP.NET Core's [health checks API](https://learn.microsoft.com/en-us/aspnet/core/host-and-deploy/health-checks?view=aspnetcore-8.0) to determine if specific resources are available after they are considered running.
