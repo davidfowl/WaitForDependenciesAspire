@@ -1,7 +1,5 @@
 var builder = DistributedApplication.CreateBuilder(args);
 
-builder.AddWaitForDependencies();
-
 var db = builder.AddSqlServer("sql")
     .WithHealthCheck()
     .AddDatabase("db");
@@ -12,6 +10,8 @@ var rabbit = builder.AddRabbitMQ("rabbit")
 builder.AddProject<Projects.WebApplication1>("api")
     .WithExternalHttpEndpoints()
     .WithReference(db)
-    .WithReference(rabbit);
+    .WithReference(rabbit)
+    .WaitOn(db)
+    .WaitOn(rabbit);
 
 builder.Build().Run();

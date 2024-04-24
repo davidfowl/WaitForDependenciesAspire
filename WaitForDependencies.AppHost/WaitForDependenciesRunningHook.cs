@@ -15,14 +15,33 @@ public class HealthCheckAnnotation(Func<string, IHealthCheck> healthCheckFactory
 public static class WaitForDependenciesExtensions
 {
     /// <summary>
+    /// Wait for a resource to be running before starting another resource.
+    /// </summary>
+    /// <typeparam name="T"></typeparam>
+    /// <param name="builder"></param>
+    /// <param name="other"></param>
+    /// <returns></returns>
+    public static IResourceBuilder<T> WaitOn<T>(this IResourceBuilder<T> builder, IResourceBuilder<IResource> other)
+        where T : IResource
+    {
+        builder.ApplicationBuilder.AddWaitForDependencies();
+        return builder.WithAnnotation(new WaitOnAnnotation(other.Resource));
+    }
+
+    /// <summary>
     /// Adds a lifecycle hook that waits for all dependencies to be "running" before starting resources. If that resource
     /// has a health check, it will be executed before the resource is considered "running".
     /// </summary>
     /// <param name="builder">The <see cref="IDistributedApplicationBuilder"/>.</param>
-    public static IDistributedApplicationBuilder AddWaitForDependencies(this IDistributedApplicationBuilder builder)
+    private static IDistributedApplicationBuilder AddWaitForDependencies(this IDistributedApplicationBuilder builder)
     {
         builder.Services.TryAddLifecycleHook<WaitForDependenciesRunningHook>();
         return builder;
+    }
+
+    private class WaitOnAnnotation(IResource resource) : IResourceAnnotation
+    {
+        public IResource Resource { get; } = resource;
     }
 
     private class WaitForDependenciesRunningHook(DistributedApplicationExecutionContext executionContext,
@@ -42,10 +61,17 @@ public static class WaitForDependenciesExtensions
 
             // The global list of resources being waited on
             var waitingResources = new ConcurrentDictionary<IResource, TaskCompletionSource>();
-            
+
             // For each resource, add an environment callback that waits for dependencies to be running
             foreach (var r in appModel.Resources)
             {
+                var resourcesToWaitOn = r.Annotations.OfType<WaitOnAnnotation>().Select(a => a.Resource).Distinct().ToArray();
+
+                if (resourcesToWaitOn.Length == 0)
+                {
+                    continue;
+                }
+
                 // Abuse the environment callback to wait for dependencies to be running
 
                 r.Annotations.Add(new EnvironmentCallbackAnnotation(async context =>
@@ -53,17 +79,8 @@ public static class WaitForDependenciesExtensions
                     var dependencies = new List<Task>();
 
                     // Find connection strings and endpoint references and get the resource they point to
-                    foreach (var (key, value) in context.EnvironmentVariables)
+                    foreach (var resource in resourcesToWaitOn)
                     {
-                        // TODO: We can handle more cases here
-                        IResource? resource = value switch
-                        {
-                            ConnectionStringReference r => r.Resource,
-                            EndpointReference e => e.Resource,
-                            EndpointReferenceExpression ep => ep.Endpoint.Resource,
-                            _ => null,
-                        };
-
                         // REVIEW: This logic does not handle cycles in the dependency graph (that would result in a deadlock)
 
                         // Don't wait for yourself
