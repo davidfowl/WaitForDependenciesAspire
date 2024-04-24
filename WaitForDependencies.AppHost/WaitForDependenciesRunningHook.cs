@@ -34,6 +34,7 @@ public static class WaitForDependenciesExtensions
 
         public Task BeforeStartAsync(DistributedApplicationModel appModel, CancellationToken cancellationToken = default)
         {
+            // We don't need to execute any of this logic in publish mode
             if (executionContext.IsPublishMode)
             {
                 return Task.CompletedTask;
@@ -41,7 +42,8 @@ public static class WaitForDependenciesExtensions
 
             // The global list of resources being waited on
             var waitingResources = new ConcurrentDictionary<IResource, TaskCompletionSource>();
-
+            
+            // For each resource, add an environment callback that waits for dependencies to be running
             foreach (var r in appModel.Resources)
             {
                 // Abuse the environment callback to wait for dependencies to be running
