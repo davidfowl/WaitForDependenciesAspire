@@ -132,7 +132,7 @@ public static class WaitForDependenciesExtensions
 
             Func<CancellationToken, ValueTask>? operation = (url?.Scheme, healthCheckAnnotation?.HealthCheckFactory) switch
             {
-                ("http" or "https", _) => async (ct) =>
+                ("http" or "https", null) => async (ct) =>
                 {
                     // For an HTTP resource, see if we can make a request to the endpoint
                     using var client = new HttpClient();
