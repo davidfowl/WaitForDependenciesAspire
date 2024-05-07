@@ -1,6 +1,6 @@
 ﻿using HealthChecks.NpgSql;
 
-public static class PostgreSqlExtensions
+public static class PostgreSqlHealthCheckExtensions
 {
     /// <summary>
     /// Adds a health check to the PostgreSQL server resource.

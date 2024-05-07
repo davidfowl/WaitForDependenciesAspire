@@ -6,12 +6,6 @@ using Microsoft.Extensions.Logging;
 using Polly;
 using Polly.Retry;
 
-// An annotation that associates a health check factory with a resource
-public class HealthCheckAnnotation(Func<string, IHealthCheck> healthCheckFactory) : IResourceAnnotation
-{
-    public Func<string, IHealthCheck> HealthCheckFactory { get; } = healthCheckFactory;
-}
-
 public static class WaitForDependenciesExtensions
 {
     /// <summary>

@@ -1,6 +1,6 @@
 ﻿using HealthChecks.RabbitMQ;
 
-internal static class RabbitMQResourceExtensions
+internal static class RabbitMQResourceHealthCheckExtensions
 {
     /// <summary>
     /// Adds a health check to the RabbitMQ server resource.

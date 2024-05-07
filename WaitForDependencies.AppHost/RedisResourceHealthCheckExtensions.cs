@@ -1,6 +1,6 @@
 ﻿using HealthChecks.Redis;
 
-public static class RedisResourceExtensions
+public static class RedisResourceHealthCheckExtensions
 {
     /// <summary>
     /// Adds a health check to the Redis server resource.

@@ -1,6 +1,6 @@
 ﻿using HealthChecks.SqlServer;
 
-public static class SqlResourceExtensions
+public static class SqlResourceHealthCheckExtensions
 {
     /// <summary>
     /// Adds a health check to the SQL Server server resource.
