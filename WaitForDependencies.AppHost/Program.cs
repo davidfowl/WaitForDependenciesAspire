@@ -7,11 +7,14 @@ var db = builder.AddSqlServer("sql")
 var rabbit = builder.AddRabbitMQ("rabbit")
                     .WithHealthCheck();
 
+var console = builder.AddProject<Projects.ConsoleApp1>("console");
+
 builder.AddProject<Projects.WebApplication1>("api")
     .WithExternalHttpEndpoints()
     .WithReference(db)
     .WithReference(rabbit)
     .WaitOn(db)
-    .WaitOn(rabbit);
+    .WaitOn(rabbit)
+    .WaitForCompletion(console);
 
 builder.Build().Run();

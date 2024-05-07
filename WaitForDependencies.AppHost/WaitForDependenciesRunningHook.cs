@@ -17,15 +17,27 @@ public static class WaitForDependenciesExtensions
     /// <summary>
     /// Wait for a resource to be running before starting another resource.
     /// </summary>
-    /// <typeparam name="T"></typeparam>
-    /// <param name="builder"></param>
-    /// <param name="other"></param>
-    /// <returns></returns>
+    /// <typeparam name="T">The resource type.</typeparam>
+    /// <param name="builder">The resource builder.</param>
+    /// <param name="other">The resource to wait for.</param>
     public static IResourceBuilder<T> WaitOn<T>(this IResourceBuilder<T> builder, IResourceBuilder<IResource> other)
         where T : IResource
     {
         builder.ApplicationBuilder.AddWaitForDependencies();
         return builder.WithAnnotation(new WaitOnAnnotation(other.Resource));
+    }
+
+    /// <summary>
+    /// Wait for a resource to run to completion before starting another resource.
+    /// </summary>
+    /// <typeparam name="T">The resource type.</typeparam>
+    /// <param name="builder">The resource builder.</param>
+    /// <param name="other">The resource to wait for.</param>
+    public static IResourceBuilder<T> WaitForCompletion<T>(this IResourceBuilder<T> builder, IResourceBuilder<IResource> other)
+        where T : IResource
+    {
+        builder.ApplicationBuilder.AddWaitForDependencies();
+        return builder.WithAnnotation(new WaitOnAnnotation(other.Resource) { WaitUntilCompleted = true });
     }
 
     /// <summary>
@@ -42,6 +54,10 @@ public static class WaitForDependenciesExtensions
     private class WaitOnAnnotation(IResource resource) : IResourceAnnotation
     {
         public IResource Resource { get; } = resource;
+
+        public string[]? States { get; set; }
+
+        public bool WaitUntilCompleted { get; set; }
     }
 
     private class WaitForDependenciesRunningHook(DistributedApplicationExecutionContext executionContext,
@@ -60,14 +76,14 @@ public static class WaitForDependenciesExtensions
             }
 
             // The global list of resources being waited on
-            var waitingResources = new ConcurrentDictionary<IResource, TaskCompletionSource>();
+            var waitingResources = new ConcurrentDictionary<IResource, ConcurrentDictionary<WaitOnAnnotation, TaskCompletionSource>>();
 
             // For each resource, add an environment callback that waits for dependencies to be running
             foreach (var r in appModel.Resources)
             {
-                var resourcesToWaitOn = r.Annotations.OfType<WaitOnAnnotation>().Select(a => a.Resource).Distinct().ToArray();
+                var resourcesToWaitOn = r.Annotations.OfType<WaitOnAnnotation>().ToLookup(a => a.Resource);
 
-                if (resourcesToWaitOn.Length == 0)
+                if (resourcesToWaitOn.Count == 0)
                 {
                     continue;
                 }
@@ -79,16 +95,45 @@ public static class WaitForDependenciesExtensions
                     var dependencies = new List<Task>();
 
                     // Find connection strings and endpoint references and get the resource they point to
-                    foreach (var resource in resourcesToWaitOn)
+                    foreach (var g in resourcesToWaitOn)
                     {
+                        var resource = g.Key;
+
                         // REVIEW: This logic does not handle cycles in the dependency graph (that would result in a deadlock)
 
                         // Don't wait for yourself
                         if (resource != r && resource is not null)
                         {
-                            context.Logger?.LogInformation("Waiting for {Resource} to be running", resource.Name);
+                            var pendingAnnotations = waitingResources.GetOrAdd(resource, _ => new());
 
-                            dependencies.Add(waitingResources.GetOrAdd(resource, _ => new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously)).Task);
+                            foreach (var a in g)
+                            {
+                                var tcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+
+                                async Task Wait()
+                                {
+                                    context.Logger?.LogInformation("Waiting for {Resource}.", a.Resource.Name);
+
+                                    try
+                                    {
+                                        await tcs.Task;
+
+                                        context.Logger?.LogInformation("Waiting for {Resource} completed.", a.Resource.Name);
+                                    }
+                                    catch (OperationCanceledException)
+                                    {
+                                        context.Logger?.LogError("Waiting for {Resource} is failed.", a.Resource.Name);
+                                    }
+                                    catch (Exception ex)
+                                    {
+                                        context.Logger?.LogError(ex, "Waiting for {Resource} is failed.", a.Resource.Name);
+                                    }
+                                }
+
+                                pendingAnnotations[a] = tcs;
+
+                                dependencies.Add(Wait());
+                            }
                         }
                     }
 
@@ -100,22 +145,50 @@ public static class WaitForDependenciesExtensions
            {
                var stoppingToken = _cts.Token;
 
+               // These states are terminal but we need a better way to detect that
+               static bool IsKnownTerminalState(CustomResourceSnapshot snapshot) =>
+                   snapshot.State == "FailedToStart" ||
+                   snapshot.State == "Exited" ||
+                   snapshot.ExitCode is not null;
+
                // Watch for global resource state changes
                await foreach (var resourceEvent in resourceNotificationService.WatchAsync(stoppingToken))
                {
-                   // These states are terminal but we need a better way to detect that
-                   if (resourceEvent.Snapshot.State == "FailedToStart" ||
-                       resourceEvent.Snapshot.State == "Exited" ||
-                       resourceEvent.Snapshot.ExitCode is not null)
+                   if (waitingResources.TryGetValue(resourceEvent.Resource, out var pendingAnnotations))
                    {
-                       if (waitingResources.TryRemove(resourceEvent.Resource, out var tcs))
+                       foreach (var (waitOn, tcs) in pendingAnnotations)
                        {
-                           tcs.TrySetCanceled();
+                           if (waitOn.States is string[] states && states.Contains(resourceEvent.Snapshot.State?.Text, StringComparer.Ordinal))
+                           {
+                               pendingAnnotations.TryRemove(waitOn, out _);
+
+                               _ = DoTheHealthCheck(resourceEvent, tcs);
+                           }
+                           else if (waitOn.WaitUntilCompleted)
+                           {
+                               if (IsKnownTerminalState(resourceEvent.Snapshot))
+                               {
+                                   pendingAnnotations.TryRemove(waitOn, out _);
+
+                                   _ = DoTheHealthCheck(resourceEvent, tcs);
+                               }
+                           }
+                           else if (waitOn.States is null)
+                           {
+                               if (resourceEvent.Snapshot.State == "Running")
+                               {
+                                   pendingAnnotations.TryRemove(waitOn, out _);
+
+                                   _ = DoTheHealthCheck(resourceEvent, tcs);
+                               }
+                               else if (IsKnownTerminalState(resourceEvent.Snapshot))
+                               {
+                                   pendingAnnotations.TryRemove(waitOn, out _);
+
+                                   tcs.TrySetCanceled();
+                               }
+                           }
                        }
-                   }
-                   else if (resourceEvent.Snapshot.State == "Running" && waitingResources.TryRemove(resourceEvent.Resource, out var tcs))
-                   {
-                       _ = DoTheHealthCheck(resourceEvent, tcs);
                    }
                }
            },
