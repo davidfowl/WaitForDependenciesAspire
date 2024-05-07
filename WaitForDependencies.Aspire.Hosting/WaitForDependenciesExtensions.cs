@@ -92,9 +92,9 @@ public static class WaitForDependenciesExtensions
                     var dependencies = new List<Task>();
 
                     // Find connection strings and endpoint references and get the resource they point to
-                    foreach (var g in resourcesToWaitOn)
+                    foreach (var group in resourcesToWaitOn)
                     {
-                        var resource = g.Key;
+                        var resource = group.Key;
 
                         // REVIEW: This logic does not handle cycles in the dependency graph (that would result in a deadlock)
 
@@ -103,31 +103,20 @@ public static class WaitForDependenciesExtensions
                         {
                             var pendingAnnotations = waitingResources.GetOrAdd(resource, _ => new());
 
-                            foreach (var a in g)
+                            foreach (var waitOn in group)
                             {
                                 var tcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
 
                                 async Task Wait()
                                 {
-                                    context.Logger?.LogInformation("Waiting for {Resource}.", a.Resource.Name);
+                                    context.Logger?.LogInformation("Waiting for {Resource}.", waitOn.Resource.Name);
 
-                                    try
-                                    {
-                                        await tcs.Task;
+                                    await tcs.Task;
 
-                                        context.Logger?.LogInformation("Waiting for {Resource} completed.", a.Resource.Name);
-                                    }
-                                    catch (OperationCanceledException)
-                                    {
-                                        context.Logger?.LogError("Waiting for {Resource} is failed.", a.Resource.Name);
-                                    }
-                                    catch (Exception ex)
-                                    {
-                                        context.Logger?.LogError(ex, "Waiting for {Resource} is failed.", a.Resource.Name);
-                                    }
+                                    context.Logger?.LogInformation("Waiting for {Resource} completed.", waitOn.Resource.Name);
                                 }
 
-                                pendingAnnotations[a] = tcs;
+                                pendingAnnotations[waitOn] = tcs;
 
                                 dependencies.Add(Wait());
                             }
@@ -244,7 +233,9 @@ public static class WaitForDependenciesExtensions
             {
                 if (operation is not null)
                 {
-                    await ResiliencePipeline.ExecuteAsync(operation);
+                    var pipeline = CreateResiliencyPipeline();
+
+                    await pipeline.ExecuteAsync(operation);
                 }
 
                 tcs.TrySetResult();
@@ -255,14 +246,11 @@ public static class WaitForDependenciesExtensions
             }
         }
 
-        private ResiliencePipeline? _resiliencePipeline;
-        private ResiliencePipeline ResiliencePipeline => _resiliencePipeline ??= CreateResiliencyPipeline();
-
         private static ResiliencePipeline CreateResiliencyPipeline()
         {
             var retryUntilCancelled = new RetryStrategyOptions()
             {
-                ShouldHandle = new PredicateBuilder().HandleInner<Exception>(),
+                ShouldHandle = new PredicateBuilder().Handle<Exception>(),
                 BackoffType = DelayBackoffType.Exponential,
                 MaxRetryAttempts = 5,
                 UseJitter = true,
