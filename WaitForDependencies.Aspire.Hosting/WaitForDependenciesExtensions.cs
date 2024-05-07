@@ -171,7 +171,7 @@ public static class WaitForDependenciesExtensions
                                {
                                    pendingAnnotations.TryRemove(waitOn, out _);
 
-                                   tcs.TrySetCanceled();
+                                   tcs.TrySetException(new Exception($"Dependency {waitOn.Resource.Name} failed to start"));
                                }
                            }
                        }
