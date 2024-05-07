@@ -1,6 +1,9 @@
-﻿using HealthChecks.RabbitMQ;
+﻿using Aspire.Hosting.ApplicationModel;
+using HealthChecks.RabbitMQ;
 
-internal static class RabbitMQResourceHealthCheckExtensions
+namespace Aspire.Hosting;
+
+public static class RabbitMQResourceHealthCheckExtensions
 {
     /// <summary>
     /// Adds a health check to the RabbitMQ server resource.

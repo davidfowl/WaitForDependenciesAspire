@@ -1,4 +1,7 @@
-﻿using HealthChecks.SqlServer;
+﻿using Aspire.Hosting.ApplicationModel;
+using HealthChecks.SqlServer;
+
+namespace Aspire.Hosting;
 
 public static class SqlResourceHealthCheckExtensions
 {

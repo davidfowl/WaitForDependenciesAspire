@@ -1,4 +1,7 @@
-﻿using HealthChecks.Redis;
+﻿using Aspire.Hosting.ApplicationModel;
+using HealthChecks.Redis;
+
+namespace Aspire.Hosting;
 
 public static class RedisResourceHealthCheckExtensions
 {

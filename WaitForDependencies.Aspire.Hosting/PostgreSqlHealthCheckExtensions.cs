@@ -1,4 +1,7 @@
-﻿using HealthChecks.NpgSql;
+﻿using Aspire.Hosting.ApplicationModel;
+using HealthChecks.NpgSql;
+
+namespace Aspire.Hosting;
 
 public static class PostgreSqlHealthCheckExtensions
 {
