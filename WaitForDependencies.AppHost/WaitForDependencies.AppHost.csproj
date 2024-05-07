@@ -25,6 +25,7 @@
     <ProjectReference Include="..\ConsoleApp1\ConsoleApp1.csproj" />
     <ProjectReference Include="..\WaitForDependencies.Aspire.Hosting\WaitForDependencies.Aspire.Hosting.csproj" IsAspireProjectResource="false" />
     <ProjectReference Include="..\WebApplication1\WebApplication1.csproj" />
+    <ProjectReference Include="..\WebApplication2\WebApplication2.csproj" />
   </ItemGroup>
 
 </Project>

@@ -10,6 +10,6 @@ public static class RedisResourceHealthCheckExtensions
     /// </summary>
     public static IResourceBuilder<RedisResource> WithHealthCheck(this IResourceBuilder<RedisResource> builder)
     {
-        return builder.WithAnnotation(new HealthCheckAnnotation(cs => new RedisHealthCheck(cs)));
+        return builder.WithAnnotation(HealthCheckAnnotation.Create(cs => new RedisHealthCheck(cs)));
     }
 }

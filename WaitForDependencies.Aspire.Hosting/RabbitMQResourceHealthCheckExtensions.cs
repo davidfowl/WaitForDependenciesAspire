@@ -10,6 +10,6 @@ public static class RabbitMQResourceHealthCheckExtensions
     /// </summary>
     public static IResourceBuilder<RabbitMQServerResource> WithHealthCheck(this IResourceBuilder<RabbitMQServerResource> builder)
     {
-        return builder.WithAnnotation(new HealthCheckAnnotation(cs => new RabbitMQHealthCheck(new RabbitMQHealthCheckOptions { ConnectionUri = new(cs) })));
+        return builder.WithAnnotation(HealthCheckAnnotation.Create(cs => new RabbitMQHealthCheck(new RabbitMQHealthCheckOptions { ConnectionUri = new(cs) })));
     }
 }

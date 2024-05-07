@@ -10,7 +10,7 @@ public static class PostgreSqlHealthCheckExtensions
     /// </summary>
     public static IResourceBuilder<PostgresServerResource> WithHealthCheck(this IResourceBuilder<PostgresServerResource> builder)
     {
-        return builder.WithAnnotation(new HealthCheckAnnotation(cs => new NpgSqlHealthCheck(new NpgSqlHealthCheckOptions(cs))));
+        return builder.WithAnnotation(HealthCheckAnnotation.Create(cs => new NpgSqlHealthCheck(new NpgSqlHealthCheckOptions(cs))));
     }
 
     /// <summary>
@@ -18,6 +18,6 @@ public static class PostgreSqlHealthCheckExtensions
     /// </summary>
     public static IResourceBuilder<PostgresDatabaseResource> WithHealthCheck(this IResourceBuilder<PostgresDatabaseResource> builder)
     {
-        return builder.WithAnnotation(new HealthCheckAnnotation(cs => new NpgSqlHealthCheck(new NpgSqlHealthCheckOptions(cs))));
+        return builder.WithAnnotation(HealthCheckAnnotation.Create(cs => new NpgSqlHealthCheck(new NpgSqlHealthCheckOptions(cs))));
     }
 }

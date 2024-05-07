@@ -1,6 +1,5 @@
 ﻿using System.Collections.Concurrent;
 using System.Runtime.ExceptionServices;
-using Aspire.Hosting;
 using Aspire.Hosting.ApplicationModel;
 using Aspire.Hosting.Lifecycle;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
@@ -197,59 +196,49 @@ public static class WaitForDependenciesExtensions
 
         private async Task DoTheHealthCheck(ResourceEvent resourceEvent, TaskCompletionSource tcs)
         {
-            var url = resourceEvent.Snapshot.Urls.Select(u => new Uri(u.Url)).FirstOrDefault();
-
             resourceEvent.Resource.TryGetLastAnnotation<HealthCheckAnnotation>(out var healthCheckAnnotation);
 
-            Func<CancellationToken, ValueTask>? operation = (url?.Scheme, healthCheckAnnotation?.HealthCheckFactory) switch
+            Func<CancellationToken, ValueTask>? operation = null;
+
+            if (healthCheckAnnotation?.HealthCheckFactory is { } factory)
             {
-                ("http" or "https", null) => async (ct) =>
+                IHealthCheck? check;
+
+                try
                 {
-                    // For an HTTP resource, see if we can make a request to the endpoint
-                    using var client = new HttpClient();
-                    var response = await client.GetAsync(url, ct);
-                }
-                ,
-                (_, Func<string, IHealthCheck> factory) => async (ct) =>
-                {
-                    if (resourceEvent.Resource is not IResourceWithConnectionString c)
+                    // TODO: Do need to pass a cancellation token here?
+                    check = await factory(resourceEvent.Resource, default);
+
+                    if (check is not null)
                     {
-                        return;
-                    }
+                        var context = new HealthCheckContext()
+                        {
+                            Registration = new HealthCheckRegistration("", check, HealthStatus.Unhealthy, [])
+                        };
 
-                    // Get the connection string from the resource so we can create the health check
-                    // with the correct connection information
+                        operation = async (cancellationToken) =>
+                        {
+                            var result = await check.CheckHealthAsync(context, cancellationToken);
 
-                    // TODO: We could cache this lookup
-                    var cs = await c.GetConnectionStringAsync(ct);
+                            if (result.Exception is not null)
+                            {
+                                ExceptionDispatchInfo.Throw(result.Exception);
+                            }
 
-                    if (cs is null)
-                    {
-                        return;
-                    }
-
-                    var check = factory(cs);
-
-                    var context = new HealthCheckContext()
-                    {
-                        Registration = new HealthCheckRegistration("", check, HealthStatus.Unhealthy, [])
-                    };
-
-                    var result = await check.CheckHealthAsync(context, ct);
-
-                    if (result.Exception is not null)
-                    {
-                        ExceptionDispatchInfo.Throw(result.Exception);
-                    }
-
-                    if (result.Status != HealthStatus.Healthy)
-                    {
-                        throw new Exception("Health check failed");
+                            if (result.Status != HealthStatus.Healthy)
+                            {
+                                throw new Exception("Health check failed");
+                            }
+                        };
                     }
                 }
-                ,
-                _ => null,
-            };
+                catch (Exception ex)
+                {
+                    tcs.TrySetException(ex);
+
+                    return;
+                }
+            }
 
             try
             {

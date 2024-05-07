@@ -10,7 +10,7 @@ public static class SqlResourceHealthCheckExtensions
     /// </summary>
     public static IResourceBuilder<SqlServerServerResource> WithHealthCheck(this IResourceBuilder<SqlServerServerResource> builder)
     {
-        return builder.WithAnnotation(new HealthCheckAnnotation(cs => new SqlServerHealthCheck(new SqlServerHealthCheckOptions { ConnectionString = cs })));
+        return builder.WithAnnotation(HealthCheckAnnotation.Create(cs => new SqlServerHealthCheck(new SqlServerHealthCheckOptions { ConnectionString = cs })));
     }
 
     /// <summary>
@@ -18,6 +18,6 @@ public static class SqlResourceHealthCheckExtensions
     /// </summary>
     public static IResourceBuilder<SqlServerDatabaseResource> WithHealthCheck(this IResourceBuilder<SqlServerDatabaseResource> builder)
     {
-        return builder.WithAnnotation(new HealthCheckAnnotation(cs => new SqlServerHealthCheck(new SqlServerHealthCheckOptions { ConnectionString = cs })));
+        return builder.WithAnnotation(HealthCheckAnnotation.Create(cs => new SqlServerHealthCheck(new SqlServerHealthCheckOptions { ConnectionString = cs })));
     }
 }
