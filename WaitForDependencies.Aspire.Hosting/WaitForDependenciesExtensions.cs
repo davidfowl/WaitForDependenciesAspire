@@ -18,7 +18,7 @@ public static class WaitForDependenciesExtensions
     /// <typeparam name="T">The resource type.</typeparam>
     /// <param name="builder">The resource builder.</param>
     /// <param name="other">The resource to wait for.</param>
-    public static IResourceBuilder<T> WaitOn<T>(this IResourceBuilder<T> builder, IResourceBuilder<IResource> other)
+    public static IResourceBuilder<T> WaitFor<T>(this IResourceBuilder<T> builder, IResourceBuilder<IResource> other)
         where T : IResource
     {
         builder.ApplicationBuilder.AddWaitForDependencies();

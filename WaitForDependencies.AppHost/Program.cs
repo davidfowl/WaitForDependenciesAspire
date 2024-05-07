@@ -13,8 +13,8 @@ builder.AddProject<Projects.WebApplication1>("api")
     .WithExternalHttpEndpoints()
     .WithReference(db)
     .WithReference(rabbit)
-    .WaitOn(db)
-    .WaitOn(rabbit)
+    .WaitFor(db)
+    .WaitFor(rabbit)
     .WaitForCompletion(console);
 
 builder.Build().Run();
