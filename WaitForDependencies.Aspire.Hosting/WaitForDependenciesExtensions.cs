@@ -185,7 +185,34 @@ public static class WaitForDependenciesExtensions
 
         private async Task DoTheHealthCheck(ResourceEvent resourceEvent, TaskCompletionSource tcs)
         {
-            resourceEvent.Resource.TryGetLastAnnotation<HealthCheckAnnotation>(out var healthCheckAnnotation);
+            var resource = resourceEvent.Resource;
+
+            // REVIEW: Right now, every resource does an independent health check, we could instead cache
+            // the health check result and reuse it for all resources that depend on the same resource
+
+
+            HealthCheckAnnotation? healthCheckAnnotation = null;
+
+            // Find the relevant health check annotation. If the resource has a parent, walk up the tree
+            // until we find the health check annotation.
+            while (true)
+            {
+                // If we find a health check annotation, break out of the loop
+                if (resource.TryGetLastAnnotation(out healthCheckAnnotation))
+                {
+                    break;
+                }
+
+                // If the resource has a parent, walk up the tree
+                if (resource is IResourceWithParent parent)
+                {
+                    resource = parent.Parent;
+                }
+                else
+                {
+                    break;
+                }
+            }
 
             Func<CancellationToken, ValueTask>? operation = null;
 
@@ -196,7 +223,7 @@ public static class WaitForDependenciesExtensions
                 try
                 {
                     // TODO: Do need to pass a cancellation token here?
-                    check = await factory(resourceEvent.Resource, default);
+                    check = await factory(resource, default);
 
                     if (check is not null)
                     {
