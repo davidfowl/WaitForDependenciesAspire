@@ -28,6 +28,6 @@ builder.AddProject<Projects.WebApplication1>("api")
 builder.Build().Run();
 ```
 
-The above example shows the usage. `WaitOn` is an extension method that stores a 
+The above example shows the usage. `WaitFor` is an extension method that stores a 
 reference to the dependency and waits for it to be healthy before starting a specific resource. In the above case,
 the `api` project will wait for the `db` and `rabbit` dependencies to be healthy before starting.
