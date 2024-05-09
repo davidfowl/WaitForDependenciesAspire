@@ -13,9 +13,5 @@ public class AspireAppHostFixture : IAsyncLifetime
         await DistributedApplicationInstance.StartAsync();
     }
     
-    public async Task DisposeAsync()
-    {
-        await DistributedApplicationInstance.StopAsync();
-        await DistributedApplicationInstance.DisposeAsync();
-    }
+    public Task DisposeAsync() => DistributedApplicationInstance.DisposeAsync().AsTask();
 }
