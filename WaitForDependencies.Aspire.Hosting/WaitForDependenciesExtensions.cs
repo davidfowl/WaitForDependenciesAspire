@@ -123,6 +123,11 @@ public static class WaitForDependenciesExtensions
                         }
                     }
 
+                    await resourceNotificationService.PublishUpdateAsync(r, s => s with
+                    {
+                        State = new("Waiting", KnownResourceStateStyles.Info)
+                    });
+                    
                     await Task.WhenAll(dependencies).WaitAsync(context.CancellationToken);
                 }));
             }
