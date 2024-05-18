@@ -10,5 +10,9 @@
     <PackageReference Include="Aspire.Microsoft.EntityFrameworkCore.SqlServer" Version="8.0.0-preview.6.24214.1" />
     <PackageReference Include="Aspire.Npgsql.EntityFrameworkCore.PostgreSQL" Version="8.0.0-preview.6.24214.1" />
   </ItemGroup>
+  
+  <ItemGroup>
+    <InternalsVisibleTo Include="TestExample" />
+  </ItemGroup>
 
 </Project>

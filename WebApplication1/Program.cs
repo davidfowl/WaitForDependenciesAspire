@@ -24,7 +24,7 @@ class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(options)
     public DbSet<Product> Products { get; set; }
 }
 
-class Product 
+internal class Product 
 {
     public int Id { get; set; }
     public string Name { get; set; } = default!;
