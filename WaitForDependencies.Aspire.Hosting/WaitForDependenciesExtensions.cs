@@ -166,7 +166,7 @@ public static class WaitForDependenciesExtensions
                            }
                            else if (waitOn.States is null)
                            {
-                               if (resourceEvent.Snapshot.State == "Running")
+                               if (resourceEvent.Snapshot.State.Text == "Running")
                                {
                                    pendingAnnotations.TryRemove(waitOn, out _);
 
